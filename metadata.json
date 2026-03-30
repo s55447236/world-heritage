@@ -1,0 +1,5 @@
+{
+  "name": "World Heritage Interactive Map",
+  "description": "A 3D interactive visualization of World Heritage sites across the globe, categorized by continent and country.",
+  "requestFramePermissions": []
+}
