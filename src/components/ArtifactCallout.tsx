@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { useStore } from '../store';
 
 export const ArtifactCallout = () => {
-  const { sites, hoveredSiteId, selectedSiteId, viewMode } = useStore();
+  const { sites, hoveredSiteId, selectedSiteId, viewMode, setPointerOverGlobe } = useStore();
   const activeSiteId = hoveredSiteId ?? selectedSiteId;
 
   const activeSite = useMemo(
@@ -36,7 +36,7 @@ export const ArtifactCallout = () => {
   return (
     <group raycast={() => null}>
       <primitive object={line} raycast={() => null} />
-      <Html position={points[1]} center distanceFactor={10} pointerEvents="none" zIndexRange={[5, 0]}>
+      <Html position={points[1]} center distanceFactor={10} zIndexRange={[5, 0]}>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeSite.id}
@@ -44,7 +44,9 @@ export const ArtifactCallout = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 10 }}
             transition={{ duration: 0.14, ease: 'easeOut' }}
-            className="min-w-[220px] max-w-[320px] pointer-events-none select-none text-center"
+            onPointerEnter={() => setPointerOverGlobe(true)}
+            onPointerLeave={() => setPointerOverGlobe(false)}
+            className="min-w-[220px] max-w-[320px] cursor-pointer select-none text-center"
           >
             <h3 className="text-[1rem] font-serif italic leading-tight text-orange-400 drop-shadow-[0_0_16px_rgba(249,115,22,0.2)]">
               {activeSite.name}

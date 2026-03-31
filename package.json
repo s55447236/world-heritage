@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "fetch:unesco": "node scripts/fetch-unesco-data.mjs",
+    "fetch:images": "node scripts/fetch-wikimedia-images.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

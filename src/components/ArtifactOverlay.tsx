@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { useStore } from '../store';
+import { SafeImage } from './SafeImage';
 
 export const ArtifactOverlay = () => {
   const { sites, hoveredSiteId, selectedSiteId, dismissedSiteId, dismissActiveCard } = useStore();
@@ -37,11 +38,15 @@ export const ArtifactOverlay = () => {
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-white/10">
-            <img
+            <SafeImage
               src={activeSite.image}
               alt={activeSite.name}
               className="aspect-video w-full object-cover"
               referrerPolicy="no-referrer"
+              title={activeSite.name}
+              subtitle={`${activeSite.country} · ${activeSite.year}`}
+              category={activeSite.category}
+              variant="card"
             />
           </div>
 

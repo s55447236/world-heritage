@@ -21,6 +21,7 @@ export default function App() {
 
   const totalSites = sites.length;
   const totalCountries = Array.from(new Set(sites.map(s => s.country))).length;
+  const totalContinents = Array.from(new Set(sites.map((site) => site.continent))).length;
   return (
     <div className="relative w-full h-screen bg-[#050505] overflow-hidden">
       {/* 3D Scene */}
@@ -53,7 +54,7 @@ export default function App() {
             World Heritage
           </h1>
           <div className="text-white/40 text-[10px] uppercase tracking-[0.3em]">
-            {totalSites} sites · {totalCountries} countries
+            {totalSites} sites · {totalCountries} countries · {totalContinents} continents
           </div>
         </div>
 

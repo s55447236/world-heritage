@@ -17,7 +17,7 @@ export const Controls = () => {
       {/* Main Controls */}
         <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-full px-6 py-3 flex items-center gap-6 shadow-2xl">
         <div className="flex items-center gap-2 text-white/60 text-[10px] font-medium uppercase tracking-widest mr-4">
-          <span className="text-white">{totalSites}</span> artifacts
+          <span className="text-white">{totalSites}</span> sites
           <span className="text-white ml-2">{totalCountries}</span> countries
         </div>
         
