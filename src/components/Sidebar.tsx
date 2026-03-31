@@ -182,11 +182,7 @@ export const Sidebar = () => {
       return true;
     });
 
-    return [...base].sort((left, right) => {
-      const imageDelta = Number(hasLocalImage(right.image)) - Number(hasLocalImage(left.image));
-      if (imageDelta !== 0) return imageDelta;
-      return yearValue(left.year) - yearValue(right.year) || left.name.localeCompare(right.name);
-    });
+    return [...base].sort((left, right) => yearValue(left.year) - yearValue(right.year) || left.name.localeCompare(right.name));
   }, [selectedContinent, selectedCountry, sites]);
 
   const title = selectedCountry || selectedContinent || 'World';

@@ -25,7 +25,7 @@ export const Controls = () => {
 
   const buttons = [
     { id: 'flat', label: 'Flat', icon: MapIcon, active: viewMode === 'flat', onClick: () => setViewMode('flat') },
-    { id: 'sphere', label: 'Standing', icon: Globe, active: viewMode === 'sphere', onClick: () => setViewMode('sphere') },
+    { id: 'sphere', label: 'Global', icon: Globe, active: viewMode === 'sphere', onClick: () => setViewMode('sphere') },
   ];
 
   const resetScene = () => {
