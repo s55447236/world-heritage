@@ -46,11 +46,13 @@ export const ArtifactPoints = () => {
     sites,
     viewMode,
     selectedSiteId,
+    hoveredSiteId,
     showSites,
+    setHoveredSiteId,
     setSelectedSiteId,
   } = useStore();
 
-  const activeSiteId = selectedSiteId;
+  const activeSiteId = selectedSiteId ?? hoveredSiteId;
 
   const targetPositions = useMemo(
     () => sites.map((site) => new THREE.Vector3(...(viewMode === 'sphere' ? site.coords : site.flatCoords))),
@@ -60,10 +62,10 @@ export const ArtifactPoints = () => {
   const scales = useMemo(
     () =>
       sites.map((site) => {
-        if (site.id === activeSiteId) return 1.65;
-        return site.id.startsWith('random') ? 0.62 : 0.95;
+        if (site.id === selectedSiteId || site.id === hoveredSiteId) return 1.65;
+        return site.id.startsWith('random') ? 0.56 : 0.88;
       }),
-    [sites, activeSiteId],
+    [sites, selectedSiteId, hoveredSiteId],
   );
 
   const syncMesh = (nextPositions: THREE.Vector3[], nextScales: number[]) => {
@@ -200,6 +202,7 @@ export const ArtifactPoints = () => {
   useEffect(() => {
     if (!showSites) {
       pointerSelectedIdRef.current = null;
+      setHoveredSiteId(null);
       setSelectedSiteId(null);
       document.body.style.cursor = '';
       return;
@@ -208,7 +211,7 @@ export const ArtifactPoints = () => {
     positionsRef.current = targetPositions.map((position) => position.clone());
     scalesRef.current = [...scales];
     syncMesh(positionsRef.current, scalesRef.current);
-  }, [showSites, targetPositions, scales, setSelectedSiteId]);
+  }, [showSites, targetPositions, scales, setHoveredSiteId, setSelectedSiteId]);
 
   useEffect(() => {
     const dom = gl.domElement;
@@ -227,6 +230,7 @@ export const ArtifactPoints = () => {
 
     const handlePointerLeave = () => {
       pointerRef.current.inside = false;
+      setHoveredSiteId(null);
       document.body.style.cursor = '';
     };
 
@@ -246,7 +250,7 @@ export const ArtifactPoints = () => {
       dom.removeEventListener('click', handleClick);
       document.body.style.cursor = '';
     };
-  }, [gl, setSelectedSiteId]);
+  }, [gl, setHoveredSiteId, setSelectedSiteId]);
 
   useFrame(() => {
     if (!showSites) return;
@@ -324,8 +328,8 @@ export const ArtifactPoints = () => {
 
     pointerSelectedIdRef.current = closestSiteId;
 
-    if (closestSiteId !== selectedSiteId) {
-      setSelectedSiteId(closestSiteId);
+    if (closestSiteId !== hoveredSiteId) {
+      setHoveredSiteId(closestSiteId);
     }
 
     document.body.style.cursor = closestSiteId ? 'pointer' : '';

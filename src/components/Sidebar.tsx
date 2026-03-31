@@ -16,9 +16,19 @@ const preferredThumbnailItems = <T extends { image: string }>(items: T[], limit 
 const ThumbnailStack = ({
   items,
   total,
+  selectedSiteId,
+  hoveredSiteId,
+  onItemHover,
+  onItemLeave,
+  onItemSelect,
 }: {
-  items: Array<{ image: string; title: string; subtitle: string; category: 'Cultural' | 'Natural' | 'Mixed' }>;
+  items: Array<{ id: string; image: string; title: string; subtitle: string; category: 'Cultural' | 'Natural' | 'Mixed' }>;
   total: number;
+  selectedSiteId?: string | null;
+  hoveredSiteId?: string | null;
+  onItemHover?: (id: string) => void;
+  onItemLeave?: () => void;
+  onItemSelect?: (id: string) => void;
 }) => {
   const visibleItems = items.slice(0, THUMBNAIL_LIMIT);
   const remainingCount = Math.max(total - visibleItems.length, 0);
@@ -28,9 +38,28 @@ const ThumbnailStack = ({
       <div className="flex min-w-0 items-center">
         {visibleItems.map((item, index) => (
           <div
-            key={`${item.title}-${index}`}
-            className={`h-9 w-9 overflow-hidden rounded-full border border-white/25 bg-white/10 ${
+            key={item.id}
+            onMouseEnter={(event) => {
+              event.stopPropagation();
+              onItemHover?.(item.id);
+            }}
+            onMouseLeave={(event) => {
+              event.stopPropagation();
+              onItemLeave?.();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onItemSelect?.(item.id);
+            }}
+            className={`relative h-9 w-9 cursor-pointer overflow-hidden rounded-full bg-white/10 transition-[border-color,box-shadow,transform] ${
               index === 0 ? '' : '-ml-2.5'
+            } ${
+              selectedSiteId === item.id
+                ? 'z-20 border border-white/55 shadow-[0_0_0_2px_rgba(255,255,255,0.18)]'
+                : hoveredSiteId === item.id
+                  ? 'z-10 border border-white/45 shadow-[0_0_0_2px_rgba(255,255,255,0.12)]'
+                  : 'border border-white/25'
             }`}
           >
             <SafeImage
@@ -68,7 +97,9 @@ export const Sidebar = () => {
     setSelectedCountry,
     sites,
     selectedSiteId,
+    hoveredSiteId,
     setSelectedSiteId,
+    setHoveredSiteId,
   } = useStore();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
@@ -91,6 +122,7 @@ export const Sidebar = () => {
           siteCount: continentSites.length,
           thumbnails: preferredThumbnailItems(
             preferredSites.map((site) => ({
+              id: site.id,
               image: site.image,
               title: site.name,
               subtitle: site.country,
@@ -130,6 +162,7 @@ export const Sidebar = () => {
           siteCount: countrySites.length,
           thumbnails: preferredThumbnailItems(
             preferredSites.map((site) => ({
+              id: site.id,
               image: site.image,
               title: site.name,
               subtitle: `${site.year} · ${site.category}`,
@@ -156,7 +189,7 @@ export const Sidebar = () => {
     });
   }, [selectedContinent, selectedCountry, sites]);
 
-  const title = selectedCountry || selectedContinent || 'World Heritage';
+  const title = selectedCountry || selectedContinent || 'World';
   const subtitle = selectedCountry ? 'Country' : selectedContinent ? 'Continent' : 'Global Map';
 
   const showBreadcrumbs = Boolean(selectedContinent || selectedCountry);
@@ -206,7 +239,7 @@ export const Sidebar = () => {
             initial={{ x: -100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -100, opacity: 0 }}
-            className="pointer-events-auto flex h-full w-80 flex-col overflow-hidden rounded-3xl border border-white/20 bg-white/10 p-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+            className="pointer-events-auto flex h-full w-80 flex-col overflow-hidden rounded-3xl border border-white/20 bg-white/10 p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04),0_24px_60px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
           >
             <div className="mb-3 flex items-start justify-between gap-4">
               <div>
@@ -253,17 +286,33 @@ export const Sidebar = () => {
               {!selectedContinent && (
                 <div className="space-y-2 pt-1">
                   {continentStats.map(({ continent, siteCount, thumbnails }) => (
-                    <button
+                    <div
                       key={continent}
                       onClick={() => setSelectedContinent(continent)}
                       className="group w-full cursor-pointer rounded-2xl border border-white/12 bg-white/8 p-4 text-left transition-all hover:border-white/22 hover:bg-white/11"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedContinent(continent);
+                        }
+                      }}
                     >
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-sm font-medium text-white">{continent}</span>
                         <span className="text-white/30 transition-colors group-hover:text-white/65">{siteCount}</span>
                       </div>
-                      <ThumbnailStack items={thumbnails} total={siteCount} />
-                    </button>
+                      <ThumbnailStack
+                        items={thumbnails}
+                        total={siteCount}
+                        selectedSiteId={selectedSiteId}
+                        hoveredSiteId={hoveredSiteId}
+                        onItemHover={setHoveredSiteId}
+                        onItemLeave={() => setHoveredSiteId(null)}
+                        onItemSelect={setSelectedSiteId}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -271,17 +320,33 @@ export const Sidebar = () => {
               {selectedContinent && !selectedCountry && (
                 <div className="space-y-2">
                   {countryStats.map(({ country, siteCount, thumbnails }) => (
-                    <button
+                    <div
                       key={country}
                       onClick={() => setSelectedCountry(country)}
                       className="group w-full cursor-pointer rounded-2xl border border-white/12 bg-white/8 p-4 text-left transition-all hover:border-white/22 hover:bg-white/11"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedCountry(country);
+                        }
+                      }}
                     >
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-sm font-medium text-white">{country}</span>
                         <span className="text-white/30 transition-colors group-hover:text-white/65">{siteCount}</span>
                       </div>
-                      <ThumbnailStack items={thumbnails} total={siteCount} />
-                    </button>
+                      <ThumbnailStack
+                        items={thumbnails}
+                        total={siteCount}
+                        selectedSiteId={selectedSiteId}
+                        hoveredSiteId={hoveredSiteId}
+                        onItemHover={setHoveredSiteId}
+                        onItemLeave={() => setHoveredSiteId(null)}
+                        onItemSelect={setSelectedSiteId}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
@@ -292,12 +357,15 @@ export const Sidebar = () => {
                     {filteredSites.map((site) => (
                       <motion.div
                         key={site.id}
-                        whileHover={{ x: 4 }}
+                        onMouseEnter={() => setHoveredSiteId(site.id)}
+                        onMouseLeave={() => setHoveredSiteId(null)}
                         onClick={() => setSelectedSiteId(selectedSiteId === site.id ? null : site.id)}
                         className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-all ${
                           selectedSiteId === site.id
                             ? 'border-white/28 bg-white/14'
-                            : 'border-white/12 bg-white/8 hover:border-white/22 hover:bg-white/11'
+                            : hoveredSiteId === site.id
+                              ? 'border-white/18 bg-white/10'
+                              : 'border-white/12 bg-white/8 hover:border-white/22 hover:bg-white/11'
                         }`}
                       >
                         <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">

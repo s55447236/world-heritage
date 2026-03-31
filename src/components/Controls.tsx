@@ -33,7 +33,7 @@ export const Controls = () => {
   };
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-4 pointer-events-auto">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-4 pointer-events-auto">
       {/* Main Controls */}
         <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-full px-6 py-3 flex items-center gap-6 shadow-2xl">
         <div className="flex items-center gap-2 text-white/60 text-[10px] font-medium uppercase tracking-widest mr-4">

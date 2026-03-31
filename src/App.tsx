@@ -47,7 +47,7 @@ export default function App() {
           
           <Globe />
           
-          <Stars radius={100} depth={55} count={2800} factor={5.5} saturation={0} fade speed={1.2} />
+          <Stars radius={100} depth={60} count={3400} factor={7.2} saturation={0.12} fade speed={1.1} />
           
           <OrbitControls
             ref={controlsRef}
@@ -62,12 +62,12 @@ export default function App() {
       {/* UI Overlay */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Top Header */}
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 text-center">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center">
           <h1 className="text-white text-4xl font-serif italic tracking-tight mb-1">
             World Heritage
           </h1>
-          <div className="text-white/40 text-[10px] uppercase tracking-[0.3em]">
-            {totalSites} sites · {totalCountries} countries · {totalContinents} continents
+          <div className="text-white/40 text-[10px] tracking-[0.18em]">
+            Every heritage site is a mark left by humanity on the map of time.
           </div>
         </div>
 
