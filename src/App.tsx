@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, Environment } from '@react-three/drei';
 import { Globe } from './components/Globe';
@@ -13,11 +13,23 @@ import { ArtifactOverlay } from './components/ArtifactOverlay';
 import { useStore } from './store';
 
 export default function App() {
-  const { sites, initializeSites } = useStore();
+  const { sites, initializeSites, viewMode } = useStore();
+  const controlsRef = useRef<any>(null);
 
   React.useEffect(() => {
     void initializeSites();
   }, [initializeSites]);
+
+  React.useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    controls.target.set(0, 0, 0);
+    controls.object.position.set(0, 0, 12);
+    controls.object.up.set(0, 1, 0);
+    controls.object.lookAt(0, 0, 0);
+    controls.update();
+  }, [viewMode]);
 
   const totalSites = sites.length;
   const totalCountries = Array.from(new Set(sites.map(s => s.country))).length;
@@ -35,9 +47,10 @@ export default function App() {
           
           <Globe />
           
-          <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
+          <Stars radius={100} depth={55} count={2800} factor={5.5} saturation={0} fade speed={1.2} />
           
-          <OrbitControls 
+          <OrbitControls
+            ref={controlsRef}
             enablePan={false} 
             minDistance={5} 
             maxDistance={30}

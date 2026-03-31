@@ -16,10 +16,15 @@ const cameraDirection = new THREE.Vector3();
 const pointDirection = new THREE.Vector3();
 const surfaceDirection = new THREE.Vector3();
 const rayHitPoint = new THREE.Vector3();
+const beamDirection = new THREE.Vector3();
+const beamPosition = new THREE.Vector3();
+const upAxis = new THREE.Vector3(0, 1, 0);
+const beamQuaternion = new THREE.Quaternion();
 const hoverRaycaster = new THREE.Raycaster();
+const hiddenScale = new THREE.Vector3(0.0001, 0.0001, 0.0001);
 const HOVER_PIXEL_RADIUS = 26;
 const HOVER_PIXEL_SWITCH_BIAS = 1.5;
-const SPHERE_RADIUS = 5.2;
+const SPHERE_RADIUS = 5.02;
 const ANGULAR_LOCK_THRESHOLD = 0.992;
 const ANGULAR_SWITCH_BIAS = 0.0015;
 
@@ -31,8 +36,10 @@ const getSiteColor = (category: 'Cultural' | 'Natural' | 'Mixed') => {
 
 export const ArtifactPoints = () => {
   const visibleMeshRef = useRef<THREE.InstancedMesh>(null);
+  const beamMeshRef = useRef<THREE.InstancedMesh>(null);
   const positionsRef = useRef<THREE.Vector3[]>([]);
   const scalesRef = useRef<number[]>([]);
+  const renderedScalesRef = useRef<number[]>([]);
   const pointerRef = useRef({ x: 0, y: 0, ndcX: 0, ndcY: 0, inside: false });
   const { camera, gl, size } = useThree();
   const {
@@ -40,6 +47,7 @@ export const ArtifactPoints = () => {
     viewMode,
     selectedSiteId,
     hoveredSiteId,
+    showSites,
     setHoveredSiteId,
     setSelectedSiteId,
   } = useStore();
@@ -54,26 +62,102 @@ export const ArtifactPoints = () => {
   const scales = useMemo(
     () =>
       sites.map((site) => {
-        if (site.id === activeSiteId) return 1.9;
-        return site.id.startsWith('random') ? 0.7 : 1.15;
+        if (site.id === activeSiteId) return 1.65;
+        return site.id.startsWith('random') ? 0.62 : 0.95;
       }),
     [sites, activeSiteId],
   );
 
   const syncMesh = (nextPositions: THREE.Vector3[], nextScales: number[]) => {
-    if (!visibleMeshRef.current) return;
+    if (!visibleMeshRef.current || !beamMeshRef.current) return;
 
     nextPositions.forEach((position, index) => {
       visibleObject.position.copy(position);
       visibleObject.scale.setScalar(nextScales[index]);
+      visibleObject.quaternion.identity();
       visibleObject.updateMatrix();
       visibleMeshRef.current!.setMatrixAt(index, visibleObject.matrix);
+
+      if (viewMode === 'sphere') {
+        beamDirection.copy(position).normalize();
+        beamQuaternion.setFromUnitVectors(upAxis, beamDirection);
+        beamPosition.copy(position).addScaledVector(beamDirection, 0.16);
+        visibleObject.position.copy(beamPosition);
+        visibleObject.quaternion.copy(beamQuaternion);
+        visibleObject.scale.set(nextScales[index] * 0.55, nextScales[index] * 0.82, nextScales[index] * 0.55);
+      } else {
+        visibleObject.position.copy(position);
+        visibleObject.quaternion.identity();
+        visibleObject.scale.copy(hiddenScale);
+      }
       visibleMeshRef.current!.setColorAt(index, getSiteColor(sites[index].category));
+      beamMeshRef.current!.setColorAt(index, getSiteColor(sites[index].category));
+      visibleObject.updateMatrix();
+      beamMeshRef.current!.setMatrixAt(index, visibleObject.matrix);
     });
 
     visibleMeshRef.current.instanceMatrix.needsUpdate = true;
     if (visibleMeshRef.current.instanceColor) {
       visibleMeshRef.current.instanceColor.needsUpdate = true;
+    }
+    beamMeshRef.current.instanceMatrix.needsUpdate = true;
+    if (beamMeshRef.current.instanceColor) {
+      beamMeshRef.current.instanceColor.needsUpdate = true;
+    }
+    visibleMeshRef.current.computeBoundingSphere();
+    visibleMeshRef.current.computeBoundingBox();
+    beamMeshRef.current.computeBoundingSphere();
+    beamMeshRef.current.computeBoundingBox();
+    renderedScalesRef.current = [...nextScales];
+  };
+
+  const syncSphereFacingMesh = () => {
+    if (!visibleMeshRef.current || !beamMeshRef.current) return;
+
+    let didChange = false;
+    visibleMeshRef.current.parent?.localToWorld(globeCenter.set(0, 0, 0));
+    cameraDirection.copy(camera.position).sub(globeCenter).normalize();
+
+    positionsRef.current.forEach((position, index) => {
+      worldPosition.copy(position);
+      visibleMeshRef.current!.localToWorld(worldPosition);
+      pointDirection.copy(worldPosition).sub(globeCenter).normalize();
+
+      const nextScale = pointDirection.dot(cameraDirection) > 0 ? scalesRef.current[index] : 0;
+      if (Math.abs((renderedScalesRef.current[index] ?? -1) - nextScale) < 0.0001) return;
+
+      visibleObject.position.copy(position);
+      if (nextScale > 0) {
+        visibleObject.scale.setScalar(nextScale);
+      } else {
+        visibleObject.scale.copy(hiddenScale);
+      }
+      visibleObject.quaternion.identity();
+      visibleObject.updateMatrix();
+      visibleMeshRef.current!.setMatrixAt(index, visibleObject.matrix);
+
+      if (nextScale > 0) {
+        beamDirection.copy(position).normalize();
+        beamQuaternion.setFromUnitVectors(upAxis, beamDirection);
+        beamPosition.copy(position).addScaledVector(beamDirection, 0.16);
+        visibleObject.position.copy(beamPosition);
+        visibleObject.quaternion.copy(beamQuaternion);
+        visibleObject.scale.set(nextScale * 0.55, nextScale * 0.82, nextScale * 0.55);
+      } else {
+        visibleObject.position.copy(position);
+        visibleObject.quaternion.identity();
+        visibleObject.scale.copy(hiddenScale);
+      }
+      visibleObject.updateMatrix();
+      beamMeshRef.current!.setMatrixAt(index, visibleObject.matrix);
+
+      renderedScalesRef.current[index] = nextScale;
+      didChange = true;
+    });
+
+    if (didChange) {
+      visibleMeshRef.current.instanceMatrix.needsUpdate = true;
+      beamMeshRef.current.instanceMatrix.needsUpdate = true;
     }
   };
 
@@ -86,28 +170,8 @@ export const ArtifactPoints = () => {
   }, [sites]);
 
   useEffect(() => {
-    const tweenState = { t: 0 };
-    const fromPositions = positionsRef.current.map((position) => position.clone());
-    const toPositions = targetPositions.map((position) => position.clone());
-
-    const animation = gsap.to(tweenState, {
-      t: 1,
-      duration: 1.2,
-      ease: 'expo.inOut',
-      onUpdate: () => {
-        const nextPositions = fromPositions.map((start, index) => start.clone().lerp(toPositions[index], tweenState.t));
-        positionsRef.current = nextPositions;
-        syncMesh(nextPositions, scalesRef.current);
-      },
-      onComplete: () => {
-        positionsRef.current = toPositions;
-        syncMesh(positionsRef.current, scalesRef.current);
-      },
-    });
-
-    return () => {
-      animation.kill();
-    };
+    positionsRef.current = targetPositions.map((position) => position.clone());
+    syncMesh(positionsRef.current, scalesRef.current);
   }, [targetPositions]);
 
   useEffect(() => {
@@ -134,6 +198,18 @@ export const ArtifactPoints = () => {
       animation.kill();
     };
   }, [scales]);
+
+  useEffect(() => {
+    if (!showSites) {
+      setHoveredSiteId(null);
+      document.body.style.cursor = '';
+      return;
+    }
+
+    positionsRef.current = targetPositions.map((position) => position.clone());
+    scalesRef.current = [...scales];
+    syncMesh(positionsRef.current, scalesRef.current);
+  }, [showSites, targetPositions, scales, setHoveredSiteId]);
 
   useEffect(() => {
     const dom = gl.domElement;
@@ -175,7 +251,16 @@ export const ArtifactPoints = () => {
   }, [gl, hoveredSiteId, setHoveredSiteId, setSelectedSiteId]);
 
   useFrame(() => {
-    if (!pointerRef.current.inside || !visibleMeshRef.current) return;
+    if (!showSites) return;
+    if (!visibleMeshRef.current) return;
+
+    if (viewMode === 'sphere') {
+      syncSphereFacingMesh();
+    } else if (renderedScalesRef.current.length !== scalesRef.current.length) {
+      syncMesh(positionsRef.current, scalesRef.current);
+    }
+
+    if (!pointerRef.current.inside) return;
 
     let closestSiteId: string | null = null;
     let closestDistance = Number.POSITIVE_INFINITY;
@@ -269,9 +354,35 @@ export const ArtifactPoints = () => {
   });
 
   return (
-    <instancedMesh ref={visibleMeshRef} args={[undefined, undefined, sites.length]}>
-      <sphereGeometry args={[0.045, 10, 10]} />
-      <meshBasicMaterial transparent opacity={0.9} blending={THREE.AdditiveBlending} toneMapped={false} />
-    </instancedMesh>
+    <>
+      <instancedMesh ref={beamMeshRef} args={[undefined, undefined, sites.length]} visible={showSites} frustumCulled={false}>
+        <coneGeometry args={[0.05, 0.28, 8, 1, true]} />
+        <meshBasicMaterial
+          transparent
+          opacity={0.12}
+          depthTest={false}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          side={THREE.DoubleSide}
+          toneMapped={false}
+        />
+      </instancedMesh>
+      <instancedMesh
+        ref={visibleMeshRef}
+        args={[undefined, undefined, sites.length]}
+        visible={showSites}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[0.035, 10, 10]} />
+        <meshBasicMaterial
+          transparent
+          opacity={0.92}
+          depthTest={false}
+          depthWrite={false}
+          blending={THREE.NormalBlending}
+          toneMapped={false}
+        />
+      </instancedMesh>
+    </>
   );
 };

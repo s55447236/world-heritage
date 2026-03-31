@@ -27,6 +27,11 @@ interface AppState {
   isPointerOverGlobe: boolean;
   wasRotatingBeforeGlobeHover: boolean;
   isSitesHydrated: boolean;
+  showOcean: boolean;
+  showLand: boolean;
+  showBorders: boolean;
+  showSites: boolean;
+  showLabels: boolean;
   setViewMode: (mode: 'sphere' | 'flat') => void;
   setSelectedContinent: (continent: string | null) => void;
   setSelectedCountry: (country: string | null) => void;
@@ -35,6 +40,11 @@ interface AppState {
   setPointerOverGlobe: (isOver: boolean) => void;
   dismissActiveCard: () => void;
   setRotating: (rotating: boolean) => void;
+  toggleOcean: () => void;
+  toggleLand: () => void;
+  toggleBorders: () => void;
+  toggleSites: () => void;
+  toggleLabels: () => void;
   initializeSites: () => Promise<void>;
 }
 
@@ -51,7 +61,7 @@ type SourceRecord = {
   description: string;
 };
 
-const GLOBE_RADIUS = 5.2;
+const GLOBE_RADIUS = 5.02;
 
 const latLonToSphere = (lat: number, lon: number, radius: number): [number, number, number] => {
   const phi = (90 - lat) * (Math.PI / 180);
@@ -65,7 +75,7 @@ const latLonToSphere = (lat: number, lon: number, radius: number): [number, numb
 const latLonToFlat = (lat: number, lon: number): [number, number, number] => {
   const x = (lon / 180) * 10;
   const y = (lat / 90) * 5;
-  return [x, y, 0];
+  return [x, y, 0.12];
 };
 
 const buildHeritageSites = () => {
@@ -103,6 +113,11 @@ export const useStore = create<AppState>((set) => ({
   isPointerOverGlobe: false,
   wasRotatingBeforeGlobeHover: true,
   isSitesHydrated: true,
+  showOcean: true,
+  showLand: true,
+  showBorders: true,
+  showSites: true,
+  showLabels: true,
   setViewMode: (mode) => set({ viewMode: mode }),
   setSelectedContinent: (continent) =>
     set({ selectedContinent: continent, selectedCountry: null, selectedSiteId: null, hoveredSiteId: null }),
@@ -135,6 +150,11 @@ export const useStore = create<AppState>((set) => ({
       isRotating: rotating,
       wasRotatingBeforeGlobeHover: state.isPointerOverGlobe ? rotating : state.wasRotatingBeforeGlobeHover,
     })),
+  toggleOcean: () => set((state) => ({ showOcean: !state.showOcean })),
+  toggleLand: () => set((state) => ({ showLand: !state.showLand })),
+  toggleBorders: () => set((state) => ({ showBorders: !state.showBorders })),
+  toggleSites: () => set((state) => ({ showSites: !state.showSites })),
+  toggleLabels: () => set((state) => ({ showLabels: !state.showLabels })),
   initializeSites: async () => {
     set({ sites: OFFICIAL_SITES, isSitesHydrated: true });
   },

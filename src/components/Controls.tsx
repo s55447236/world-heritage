@@ -3,7 +3,23 @@ import { useStore } from '../store';
 import { RotateCcw, Play, Pause, Globe, Map as MapIcon } from 'lucide-react';
 
 export const Controls = () => {
-  const { viewMode, setViewMode, isRotating, setRotating, sites } = useStore();
+  const {
+    viewMode,
+    setViewMode,
+    isRotating,
+    setRotating,
+    sites,
+    showOcean,
+    showLand,
+    showBorders,
+    showSites,
+    showLabels,
+    toggleOcean,
+    toggleLand,
+    toggleBorders,
+    toggleSites,
+    toggleLabels,
+  } = useStore();
   const totalSites = sites.length;
   const totalCountries = Array.from(new Set(sites.map((site) => site.country))).length;
 
@@ -11,6 +27,10 @@ export const Controls = () => {
     { id: 'flat', label: 'Flat', icon: MapIcon, active: viewMode === 'flat', onClick: () => setViewMode('flat') },
     { id: 'sphere', label: 'Standing', icon: Globe, active: viewMode === 'sphere', onClick: () => setViewMode('sphere') },
   ];
+
+  const resetScene = () => {
+    window.location.reload();
+  };
 
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-4 pointer-events-auto">
@@ -43,7 +63,7 @@ export const Controls = () => {
 
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => setRotating(true)}
+            onClick={resetScene}
             className="cursor-pointer text-white/60 hover:text-white flex flex-col items-center gap-1"
           >
             <RotateCcw size={14} />
@@ -59,14 +79,24 @@ export const Controls = () => {
         </div>
       </div>
 
-      {/* Sub Controls */}
       <div className="flex items-center gap-2">
-        {['Labels', 'Origins', 'Ring', 'Ring2', 'Ring3', 'Aurora'].map((label) => (
-          <button 
-            key={label}
-            className="cursor-pointer px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-[9px] text-white/50 hover:text-white transition-all uppercase tracking-widest"
+        {[
+          { label: 'Ocean', active: showOcean, onClick: toggleOcean },
+          { label: 'Land', active: showLand, onClick: toggleLand },
+          { label: 'Borders', active: showBorders, onClick: toggleBorders },
+          { label: 'Sites', active: showSites, onClick: toggleSites },
+          { label: 'Labels', active: showLabels, onClick: toggleLabels },
+        ].map((layer) => (
+          <button
+            key={layer.label}
+            onClick={layer.onClick}
+            className={`cursor-pointer px-3 py-1 border rounded-full text-[9px] transition-all uppercase tracking-widest ${
+              layer.active
+                ? 'bg-white/12 border-white/18 text-white/80 hover:bg-white/16'
+                : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/70'
+            }`}
           >
-            {label}
+            {layer.label}
           </button>
         ))}
       </div>

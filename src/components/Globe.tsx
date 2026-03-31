@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import gsap from 'gsap';
 import { WorldMap } from './WorldMap';
 import { ArtifactPoints } from './ArtifactPoints';
 import { ArtifactCallout } from './ArtifactCallout';
@@ -11,15 +10,9 @@ export const Globe = () => {
   const groupRef = useRef<THREE.Group>(null);
   const { isRotating, viewMode, setPointerOverGlobe } = useStore();
 
-  // Reset rotation when switching to flat mode
   React.useEffect(() => {
-    if (viewMode === 'flat' && groupRef.current) {
-      gsap.to(groupRef.current.rotation, {
-        y: 0,
-        duration: 1,
-        ease: 'power2.inOut'
-      });
-    }
+    if (!groupRef.current) return;
+    groupRef.current.rotation.set(0, 0, 0);
   }, [viewMode]);
 
   useFrame((state, delta) => {
@@ -29,7 +22,7 @@ export const Globe = () => {
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} scale={0.8}>
       {viewMode === 'sphere' && (
         <mesh
           onPointerOver={() => setPointerOverGlobe(true)}

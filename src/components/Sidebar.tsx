@@ -89,7 +89,6 @@ export const Sidebar = () => {
         return {
           continent,
           siteCount: continentSites.length,
-          countryCount: new Set(continentSites.map((site) => site.country)).size,
           thumbnails: preferredThumbnailItems(
             preferredSites.map((site) => ({
               image: site.image,
@@ -253,7 +252,7 @@ export const Sidebar = () => {
             <div className="custom-scrollbar flex-1 overflow-y-auto">
               {!selectedContinent && (
                 <div className="space-y-2 pt-1">
-                  {continentStats.map(({ continent, siteCount, countryCount, thumbnails }) => (
+                  {continentStats.map(({ continent, siteCount, thumbnails }) => (
                     <button
                       key={continent}
                       onClick={() => setSelectedContinent(continent)}
@@ -263,9 +262,6 @@ export const Sidebar = () => {
                         <span className="text-sm font-medium text-white">{continent}</span>
                         <span className="text-white/30 transition-colors group-hover:text-white/65">{siteCount}</span>
                       </div>
-                      <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-white/40">
-                        {countryCount} countries
-                      </p>
                       <ThumbnailStack items={thumbnails} total={siteCount} />
                     </button>
                   ))}
