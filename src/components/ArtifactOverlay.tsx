@@ -5,8 +5,8 @@ import { useStore } from '../store';
 import { SafeImage } from './SafeImage';
 
 export const ArtifactOverlay = () => {
-  const { sites, hoveredSiteId, selectedSiteId, dismissedSiteId, dismissActiveCard } = useStore();
-  const activeSiteId = hoveredSiteId ?? selectedSiteId;
+  const { sites, selectedSiteId, dismissedSiteId, dismissActiveCard } = useStore();
+  const activeSiteId = selectedSiteId;
 
   const activeSite = useMemo(
     () => sites.find((site) => site.id === activeSiteId) ?? null,

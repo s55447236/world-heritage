@@ -5,8 +5,8 @@ import * as THREE from 'three';
 import { useStore } from '../store';
 
 export const ArtifactCallout = () => {
-  const { sites, hoveredSiteId, selectedSiteId, viewMode, showLabels, showSites, setPointerOverGlobe } = useStore();
-  const activeSiteId = hoveredSiteId ?? selectedSiteId;
+  const { sites, selectedSiteId, viewMode, showLabels, showSites } = useStore();
+  const activeSiteId = selectedSiteId;
 
   const activeSite = useMemo(
     () => sites.find((site) => site.id === activeSiteId) ?? null,
@@ -32,7 +32,15 @@ export const ArtifactCallout = () => {
         opacity={0.78}
         raycast={() => null}
       />
-      <Html position={points[1]} center distanceFactor={10} zIndexRange={[5, 0]}>
+      <Html
+        position={points[1]}
+        center
+        distanceFactor={10}
+        zIndexRange={[5, 0]}
+        wrapperClass="artifact-callout-layer"
+        pointerEvents="none"
+        style={{ pointerEvents: 'none' }}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={activeSite.id}
@@ -40,9 +48,7 @@ export const ArtifactCallout = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 10 }}
             transition={{ duration: 0.14, ease: 'easeOut' }}
-            onPointerEnter={() => setPointerOverGlobe(true)}
-            onPointerLeave={() => setPointerOverGlobe(false)}
-            className="min-w-[220px] max-w-[320px] cursor-pointer select-none text-center"
+            className="pointer-events-none min-w-[220px] max-w-[320px] select-none text-center"
           >
             <h3 className="text-[1rem] font-serif italic leading-tight text-white drop-shadow-[0_0_16px_rgba(255,255,255,0.22)]">
               {activeSite.name}

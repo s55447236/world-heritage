@@ -16,17 +16,16 @@ const cameraDirection = new THREE.Vector3();
 const pointDirection = new THREE.Vector3();
 const surfaceDirection = new THREE.Vector3();
 const rayHitPoint = new THREE.Vector3();
+const parentWorldScale = new THREE.Vector3();
 const beamDirection = new THREE.Vector3();
 const beamPosition = new THREE.Vector3();
 const upAxis = new THREE.Vector3(0, 1, 0);
 const beamQuaternion = new THREE.Quaternion();
 const hoverRaycaster = new THREE.Raycaster();
 const hiddenScale = new THREE.Vector3(0.0001, 0.0001, 0.0001);
-const HOVER_PIXEL_RADIUS = 26;
-const HOVER_PIXEL_SWITCH_BIAS = 1.5;
+const HOVER_PIXEL_RADIUS = 8;
 const SPHERE_RADIUS = 5.02;
-const ANGULAR_LOCK_THRESHOLD = 0.992;
-const ANGULAR_SWITCH_BIAS = 0.0015;
+const ANGULAR_LOCK_THRESHOLD = 0.9992;
 
 const getSiteColor = (category: 'Cultural' | 'Natural' | 'Mixed') => {
   if (category === 'Cultural') return CULTURAL_COLOR;
@@ -40,19 +39,18 @@ export const ArtifactPoints = () => {
   const positionsRef = useRef<THREE.Vector3[]>([]);
   const scalesRef = useRef<number[]>([]);
   const renderedScalesRef = useRef<number[]>([]);
+  const pointerSelectedIdRef = useRef<string | null>(null);
   const pointerRef = useRef({ x: 0, y: 0, ndcX: 0, ndcY: 0, inside: false });
   const { camera, gl, size } = useThree();
   const {
     sites,
     viewMode,
     selectedSiteId,
-    hoveredSiteId,
     showSites,
-    setHoveredSiteId,
     setSelectedSiteId,
   } = useStore();
 
-  const activeSiteId = hoveredSiteId ?? selectedSiteId;
+  const activeSiteId = selectedSiteId;
 
   const targetPositions = useMemo(
     () => sites.map((site) => new THREE.Vector3(...(viewMode === 'sphere' ? site.coords : site.flatCoords))),
@@ -201,7 +199,8 @@ export const ArtifactPoints = () => {
 
   useEffect(() => {
     if (!showSites) {
-      setHoveredSiteId(null);
+      pointerSelectedIdRef.current = null;
+      setSelectedSiteId(null);
       document.body.style.cursor = '';
       return;
     }
@@ -209,7 +208,7 @@ export const ArtifactPoints = () => {
     positionsRef.current = targetPositions.map((position) => position.clone());
     scalesRef.current = [...scales];
     syncMesh(positionsRef.current, scalesRef.current);
-  }, [showSites, targetPositions, scales, setHoveredSiteId]);
+  }, [showSites, targetPositions, scales, setSelectedSiteId]);
 
   useEffect(() => {
     const dom = gl.domElement;
@@ -223,18 +222,17 @@ export const ArtifactPoints = () => {
         ndcY: -((event.clientY - rect.top) / rect.height) * 2 + 1,
         inside: true,
       };
-      document.body.style.cursor = 'pointer';
+      document.body.style.cursor = '';
     };
 
     const handlePointerLeave = () => {
       pointerRef.current.inside = false;
-      setHoveredSiteId(null);
       document.body.style.cursor = '';
     };
 
     const handleClick = () => {
-      if (hoveredSiteId) {
-        setSelectedSiteId(hoveredSiteId);
+      if (pointerSelectedIdRef.current) {
+        setSelectedSiteId(pointerSelectedIdRef.current);
       }
     };
 
@@ -248,7 +246,7 @@ export const ArtifactPoints = () => {
       dom.removeEventListener('click', handleClick);
       document.body.style.cursor = '';
     };
-  }, [gl, hoveredSiteId, setHoveredSiteId, setSelectedSiteId]);
+  }, [gl, setSelectedSiteId]);
 
   useFrame(() => {
     if (!showSites) return;
@@ -265,8 +263,6 @@ export const ArtifactPoints = () => {
     let closestSiteId: string | null = null;
     let closestDistance = Number.POSITIVE_INFINITY;
     let bestAngularScore = -1;
-    let currentHoverAngularScore = -1;
-    let currentHoverPixelDistance = Number.POSITIVE_INFINITY;
 
     pointerPosition.set(pointerRef.current.x, pointerRef.current.y);
     visibleMeshRef.current.parent?.localToWorld(globeCenter.set(0, 0, 0));
@@ -278,8 +274,11 @@ export const ArtifactPoints = () => {
         camera,
       );
 
+      visibleMeshRef.current.parent?.getWorldScale(parentWorldScale);
+      const worldSphereRadius = SPHERE_RADIUS * Math.max(parentWorldScale.x, parentWorldScale.y, parentWorldScale.z);
+
       const hit = hoverRaycaster.ray.intersectSphere(
-        new THREE.Sphere(globeCenter, SPHERE_RADIUS),
+        new THREE.Sphere(globeCenter, worldSphereRadius),
         rayHitPoint,
       );
 
@@ -295,10 +294,6 @@ export const ArtifactPoints = () => {
           if (facingScore <= 0) return;
 
           const angularScore = pointDirection.dot(surfaceDirection);
-          if (sites[index].id === hoveredSiteId) {
-            currentHoverAngularScore = angularScore;
-          }
-
           if (angularScore > bestAngularScore) {
             bestAngularScore = angularScore;
             closestSiteId = sites[index].id;
@@ -307,13 +302,6 @@ export const ArtifactPoints = () => {
 
         if (bestAngularScore < ANGULAR_LOCK_THRESHOLD) {
           closestSiteId = null;
-        } else if (
-          hoveredSiteId &&
-          closestSiteId &&
-          closestSiteId !== hoveredSiteId &&
-          currentHoverAngularScore >= bestAngularScore - ANGULAR_SWITCH_BIAS
-        ) {
-          closestSiteId = hoveredSiteId;
         }
       }
     } else {
@@ -327,30 +315,20 @@ export const ArtifactPoints = () => {
         const screenY = (-projectedPosition.y * 0.5 + 0.5) * size.height;
         const distance = pointerPosition.distanceTo(new THREE.Vector2(screenX, screenY));
 
-        if (sites[index].id === hoveredSiteId) {
-          currentHoverPixelDistance = distance;
-        }
-
         if (distance < HOVER_PIXEL_RADIUS && distance < closestDistance) {
           closestDistance = distance;
           closestSiteId = sites[index].id;
         }
       });
-
-      if (
-        hoveredSiteId &&
-        closestSiteId &&
-        closestSiteId !== hoveredSiteId &&
-        currentHoverPixelDistance <= closestDistance + HOVER_PIXEL_SWITCH_BIAS
-      ) {
-        closestSiteId = hoveredSiteId;
-      }
     }
 
-    if (closestSiteId !== hoveredSiteId) {
-      setHoveredSiteId(closestSiteId);
-      document.body.style.cursor = closestSiteId ? 'pointer' : '';
+    pointerSelectedIdRef.current = closestSiteId;
+
+    if (closestSiteId !== selectedSiteId) {
+      setSelectedSiteId(closestSiteId);
     }
+
+    document.body.style.cursor = closestSiteId ? 'pointer' : '';
   });
 
   return (

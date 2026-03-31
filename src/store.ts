@@ -142,7 +142,8 @@ export const useStore = create<AppState>((set) => ({
     })),
   dismissActiveCard: () =>
     set((state) => ({
-      dismissedSiteId: state.hoveredSiteId ?? state.selectedSiteId,
+      dismissedSiteId: state.selectedSiteId,
+      selectedSiteId: null,
       hoveredSiteId: null,
     })),
   setRotating: (rotating) =>

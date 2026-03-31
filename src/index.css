@@ -28,3 +28,9 @@ body {
 .custom-scrollbar {
   scrollbar-width: none;
 }
+
+.artifact-callout-layer,
+.artifact-callout-layer * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
