@@ -53,10 +53,23 @@ const main = async () => {
 
     await fs.mkdir(targetDir, { recursive: true });
     touchedDirs.add(targetDir);
+    const sourceExists = await fs
+      .access(sourcePath)
+      .then(() => true)
+      .catch(() => false);
+    const targetExists = await fs
+      .access(targetPath)
+      .then(() => true)
+      .catch(() => false);
 
     if (path.resolve(sourcePath) !== path.resolve(targetPath)) {
-      targetPath = await ensureUniqueTarget(targetPath, unescoId);
-      await fs.rename(sourcePath, targetPath);
+      if (sourceExists) {
+        targetPath = targetExists ? await ensureUniqueTarget(targetPath, unescoId) : targetPath;
+        await fs.rename(sourcePath, targetPath);
+      } else if (!targetExists) {
+        newImages[unescoId] = relativeSourcePath;
+        continue;
+      }
     }
 
     const targetRelativePath = path

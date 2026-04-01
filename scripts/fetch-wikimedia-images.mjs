@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SPARQL_URL = 'https://query.wikidata.org/sparql';
+const WIKIPEDIA_SEARCH_URL = 'https://en.wikipedia.org/w/api.php';
+const WIKIPEDIA_SUMMARY_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 const IMAGE_DIR_RELATIVE = path.join('public', 'images', 'sites');
 const IMAGE_MAP_RELATIVE = path.join('src', 'data', 'unesco-image-map.json');
 const UNESCO_DATA_RELATIVE = path.join('src', 'data', 'unesco-world-heritage.json');
@@ -78,6 +80,79 @@ const fetchImageBindings = async () => {
   return payload?.results?.bindings ?? [];
 };
 
+const fetchWikipediaSearchTitles = async (query) => {
+  const url = new URL(WIKIPEDIA_SEARCH_URL);
+  url.searchParams.set('action', 'query');
+  url.searchParams.set('list', 'search');
+  url.searchParams.set('srsearch', query);
+  url.searchParams.set('srlimit', '5');
+  url.searchParams.set('utf8', '1');
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('origin', '*');
+
+  const response = await fetch(url, {
+    headers: {
+      accept: 'application/json',
+      'user-agent': 'world-heritage-image-fetcher/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Wikipedia search failed: ${response.status} ${response.statusText}`);
+  }
+
+  const payload = await response.json();
+  return (payload?.query?.search ?? []).map((entry) => entry.title).filter(Boolean);
+};
+
+const fetchWikipediaSummary = async (title) => {
+  const url = `${WIKIPEDIA_SUMMARY_URL}/${encodeURIComponent(title)}`;
+  const response = await fetch(url, {
+    headers: {
+      accept: 'application/json',
+      'user-agent': 'world-heritage-image-fetcher/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+};
+
+const resolveWikipediaImageUrl = async (record) => {
+  const candidates = [
+    `${record.name} ${record.country}`,
+    record.name,
+  ].filter(Boolean);
+
+  const seenTitles = new Set();
+
+  for (const candidate of candidates) {
+    let titles = [];
+    try {
+      titles = await fetchWikipediaSearchTitles(candidate);
+    } catch {
+      continue;
+    }
+
+    for (const title of titles) {
+      if (seenTitles.has(title)) continue;
+      seenTitles.add(title);
+
+      const summary = await fetchWikipediaSummary(title);
+      const imageUrl = summary?.thumbnail?.source ?? summary?.originalimage?.source ?? null;
+
+      if (imageUrl) {
+        return imageUrl;
+      }
+    }
+  }
+
+  return null;
+};
+
 const buildThumbnailUrl = (imageUrl) => {
   const url = new URL(imageUrl.replace('http://', 'https://'));
   url.searchParams.set('width', String(THUMBNAIL_WIDTH));
@@ -131,6 +206,30 @@ const downloadFile = async (url, destination) => {
   throw lastError ?? new Error('Image request failed after retries');
 };
 
+const downloadAndMapImage = async ({ unescoId, sourceUrl, imageMap }) => {
+  const url = new URL(sourceUrl.replace('http://', 'https://'));
+  let extension = extensionFromUrl(url) ?? '.jpg';
+  let destination = path.join(IMAGE_DIR, `${unescoId}${extension}`);
+
+  if (await fileExists(destination)) {
+    imageMap[unescoId] = `/images/sites/${unescoId}${extension}`;
+    return { downloaded: false, reused: true };
+  }
+
+  const contentType = await downloadFile(url.toString(), destination);
+  const detectedExtension = extensionFromContentType(contentType);
+
+  if (detectedExtension && detectedExtension !== extension) {
+    const correctedDestination = path.join(IMAGE_DIR, `${unescoId}${detectedExtension}`);
+    await rename(destination, correctedDestination);
+    destination = correctedDestination;
+    extension = detectedExtension;
+  }
+
+  imageMap[unescoId] = `/images/sites/${unescoId}${extension}`;
+  return { downloaded: true, reused: false };
+};
+
 const main = async () => {
   await ensureDir(IMAGE_DIR);
 
@@ -149,6 +248,7 @@ const main = async () => {
     : unescoData.records;
 
   const requestedIds = new Set(requestedRecords.map((record) => String(record.unescoId)));
+  const requestedRecordMap = new Map(requestedRecords.map((record) => [String(record.unescoId), record]));
   const imageBindings = bindings.filter((binding) => requestedIds.has(String(binding.unescoId?.value ?? '')));
 
   const imageMap = { ...existingMap, ...existingImages };
@@ -159,12 +259,9 @@ const main = async () => {
   for (const binding of imageBindings) {
     const unescoId = String(binding.unescoId.value);
     const sourceUrl = buildThumbnailUrl(binding.image.value);
-    const url = new URL(sourceUrl);
-    let extension = extensionFromUrl(url) ?? '.jpg';
-    let destination = path.join(IMAGE_DIR, `${unescoId}${extension}`);
+    const record = requestedRecordMap.get(unescoId);
 
-    if (await fileExists(destination)) {
-      imageMap[unescoId] = `/images/sites/${unescoId}${extension}`;
+    if (imageMap[unescoId]) {
       skippedCount += 1;
       continue;
     }
@@ -175,21 +272,55 @@ const main = async () => {
 
     try {
       attemptedDownloads += 1;
-      const contentType = await downloadFile(sourceUrl, destination);
-      const detectedExtension = extensionFromContentType(contentType);
-
-      if (detectedExtension && detectedExtension !== extension) {
-        const correctedDestination = path.join(IMAGE_DIR, `${unescoId}${detectedExtension}`);
-        await rename(destination, correctedDestination);
-        destination = correctedDestination;
-        extension = detectedExtension;
-      }
-
-      imageMap[unescoId] = `/images/sites/${unescoId}${extension}`;
-      downloadedCount += 1;
+      const result = await downloadAndMapImage({ unescoId, sourceUrl, imageMap });
+      if (result.downloaded) downloadedCount += 1;
+      if (result.reused) skippedCount += 1;
       await sleep(delayMs);
     } catch (error) {
-      console.warn(`Failed to download image for UNESCO site ${unescoId}:`, error.message);
+      let recovered = false;
+
+      if (record) {
+        try {
+          const fallbackUrl = await resolveWikipediaImageUrl(record);
+          if (fallbackUrl) {
+            const result = await downloadAndMapImage({ unescoId, sourceUrl: fallbackUrl, imageMap });
+            if (result.downloaded) downloadedCount += 1;
+            if (result.reused) skippedCount += 1;
+            recovered = true;
+          }
+        } catch (fallbackError) {
+          console.warn(`Wikipedia fallback failed for UNESCO site ${unescoId}:`, fallbackError.message);
+        }
+      }
+
+      if (!recovered) {
+        console.warn(`Failed to download image for UNESCO site ${unescoId}:`, error.message);
+      }
+
+      await sleep(delayMs);
+    }
+  }
+
+  for (const record of requestedRecords) {
+    const unescoId = String(record.unescoId);
+
+    if (imageMap[unescoId] || attemptedDownloads >= limit) {
+      continue;
+    }
+
+    try {
+      const fallbackUrl = await resolveWikipediaImageUrl(record);
+      if (!fallbackUrl) {
+        continue;
+      }
+
+      attemptedDownloads += 1;
+      const result = await downloadAndMapImage({ unescoId, sourceUrl: fallbackUrl, imageMap });
+      if (result.downloaded) downloadedCount += 1;
+      if (result.reused) skippedCount += 1;
+      await sleep(delayMs);
+    } catch (error) {
+      console.warn(`Wikipedia fallback failed for UNESCO site ${unescoId}:`, error.message);
       await sleep(delayMs);
     }
   }
