@@ -379,11 +379,6 @@ export const Sidebar = () => {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <h3 className="truncate text-xs font-medium text-white">{site.name}</h3>
-                            {hasLocalImage(site.image) && (
-                              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                                Real
-                              </span>
-                            )}
                           </div>
                           <p className="text-[10px] uppercase tracking-[0.14em] text-white/56">
                             {site.year} · {site.category}

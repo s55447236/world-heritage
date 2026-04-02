@@ -65,16 +65,11 @@ export const ArtifactOverlay = () => {
               <p className="text-sm leading-relaxed text-white/70">{activeSite.description}</p>
             </div>
 
-            <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">
-                {activeSite.category}
-              </span>
-              <div className="flex gap-1">
-                <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
-                <div className="h-1.5 w-1.5 rounded-full bg-orange-500/50" />
-                <div className="h-1.5 w-1.5 rounded-full bg-orange-500/20" />
+              <div className="mt-4 flex items-center border-t border-white/10 pt-4">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-orange-400">
+                  {activeSite.category}
+                </span>
               </div>
-            </div>
           </div>
         </motion.aside>
       )}
